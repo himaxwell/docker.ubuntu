@@ -92,7 +92,7 @@
 
 - name: Install (or update) docker package
   apt:
-    name: "{{ docker_pkg_name }}"
+    name: "{{ docker_pkg_name }}=18.06.1~ce~3-0~ubuntu"
     state: "{{ 'latest' if update_docker_package else 'present' }}"
     update_cache: "{{ update_docker_package }}"
     cache_valid_time: "{{ docker_apt_cache_valid_time }}"
