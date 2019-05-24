@@ -31,7 +31,7 @@
     state: absent
   when: uninstall_previous_docker_versions
 
-- name: Install linux-image-extra-* packages to enable AuFS driver
+- name: Install linux-image-extra-* packages to enable AuFS driver if kernel =< 3.13.0-165
   apt:
     pkg:
       - linux-image-extra-{{ ansible_kernel }}
@@ -40,7 +40,7 @@
     update_cache: yes
     cache_valid_time: "{{ docker_apt_cache_valid_time }}"
   environment: "{{ proxy_env if proxy_env is defined else {} }}"
-  when: docker_aufs_enabled and ansible_distribution_version is version_compare('14.04', '==') and ansible_kernel is version_compare('4.4', '<')
+  when: docker_aufs_enabled and ansible_distribution_version is version_compare('14.04', '==') and ansible_kernel is version_compare('4.4', '<') and ansible_kernel is version_compare('3.13.0-165', '<=')
 
   register: linux_image_extra_install
   ignore_errors: yes
@@ -53,6 +53,29 @@
     cache_valid_time: "{{ docker_apt_cache_valid_time }}"
   environment: "{{ proxy_env if proxy_env is defined else {} }}"
   when: linux_image_extra_install is failed
+
+- name: Install linux-modules-extra-* packages to enable AuFS driver if kernel > 3.13.0-165
+  apt:
+    pkg:
+      - linux-modules-extra-{{ ansible_kernel }}
+      - linux-image-extra-virtual
+    state: present
+    update_cache: yes
+    cache_valid_time: "{{ docker_apt_cache_valid_time }}"
+  environment: "{{ proxy_env if proxy_env is defined else {} }}"
+  when: docker_aufs_enabled and ansible_distribution_version is version_compare('14.04', '==') and ansible_kernel is version_compare('4.4', '<')  and ansible_kernel is version_compare('3.13.0-165', '>')
+
+  register: linux_modules_extra_install
+  ignore_errors: yes
+
+- name: Try again to install linux-modules-extra if previous attempt failed
+  apt:
+    pkg: "linux-modules-extra-{{ ansible_kernel.split('-')[:-1]|join('-') }}*"
+    state: present
+    update_cache: yes
+    cache_valid_time: "{{ docker_apt_cache_valid_time }}"
+  environment: "{{ proxy_env if proxy_env is defined else {} }}"
+  when: linux_modules_extra_install is failed
 
 - name: Ensure dirmngr is available
   apt:
